@@ -1,0 +1,18 @@
+# Core dependencies for the project
+PyQt6==6.9.1
+pyqtgraph==0.13.7
+numpy==2.3.2
+
+# Bluetooth communication
+pybluez==0.30
+
+# Serial communication (existing)
+pyserial==3.5
+
+# MQTT communication (existing)  
+paho-mqtt==2.1.0
+
+# Development and utility
+setuptools>=57.5.0
+
+# Note: numpy is already included above for data processing and velocity calculation

@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual envs
+venv/
+.venv/
+env/
+.env
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# PyInstaller/Packaging
+*.spec
+*.exe
+*.dll
+*.bin
+
+# Qt/PyQt artifacts
+*.qmlc
+*.jsc
+*.qrc
+*.rcc
+
+# Local data
+*.sqlite*
+*.db
+
+
