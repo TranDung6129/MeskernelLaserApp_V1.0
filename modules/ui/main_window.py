@@ -241,7 +241,8 @@ class BluetoothMainWindow(QMainWindow):
                 LaserCommand(command_type=CommandType.READ_SERIAL_NUMBER),
                 LaserCommand(command_type=CommandType.READ_INPUT_VOLTAGE)
             ]
-            self._send_query_sequence(query_cmds, 0)
+            # Chờ một chút cho đường truyền ổn định (đặc biệt trên Windows/COM)
+            QTimer.singleShot(300, lambda: self._send_query_sequence(query_cmds, 0))
         except Exception as e:
             self.communication_panel.add_log_message(f"Không thể truy vấn thông tin thiết bị tự động: {e}", "WARNING")
 
@@ -255,8 +256,8 @@ class BluetoothMainWindow(QMainWindow):
             cmd_bytes = cmd.to_bytes()
             if cmd_bytes and self.bluetooth_manager and self.bluetooth_manager.socket:
                 self.bluetooth_manager.socket.send(cmd_bytes)
-            # Gửi lệnh kế tiếp sau 150ms
-            QTimer.singleShot(150, lambda: self._send_query_sequence(commands, index + 1))
+            # Gửi lệnh kế tiếp sau 300ms (Windows serial cần delay lớn hơn tránh chồng phản hồi)
+            QTimer.singleShot(300, lambda: self._send_query_sequence(commands, index + 1))
         except Exception as e:
             self.communication_panel.add_log_message(f"Lỗi gửi truy vấn tự động: {e}", "WARNING")
         
@@ -318,27 +319,53 @@ class BluetoothMainWindow(QMainWindow):
             
             # Nếu không có context hoặc chưa parse ra gì, thử auto-detect một frame ở đầu buffer
             if not parsed_info:
-                # Thử cắt một frame 9 hoặc 13 bytes theo header
+                # Thử cắt frame theo prefix 4 byte để xác định chính xác độ dài mong đợi
                 while True:
                     start_idx = self._bt_parse_buffer.find(HEADER)
                     if start_idx == -1:
                         self._bt_parse_buffer.clear()
                         break
                     remaining = len(self._bt_parse_buffer) - start_idx
-                    candidate = None
-                    if remaining >= LEN_MEASUREMENT_RESPONSE:
-                        candidate = bytes(self._bt_parse_buffer[start_idx:start_idx + LEN_MEASUREMENT_RESPONSE])
-                        del self._bt_parse_buffer[:start_idx + LEN_MEASUREMENT_RESPONSE]
-                    elif remaining >= LEN_STATUS_RESPONSE:
-                        candidate = bytes(self._bt_parse_buffer[start_idx:start_idx + LEN_STATUS_RESPONSE])
-                        del self._bt_parse_buffer[:start_idx + LEN_STATUS_RESPONSE]
-                    else:
+                    if remaining < 4:
+                        # Chưa đủ để nhận diện loại frame, giữ lại từ header
                         if start_idx > 0:
                             del self._bt_parse_buffer[:start_idx]
                         break
-                    if candidate:
-                        parsed_info = MeskernelResponseParser.parse_any_response(candidate)
+                    prefix = bytes(self._bt_parse_buffer[start_idx:start_idx + 4])
+                    expected_len = None
+                    if prefix == b'\xAA\x00\x00\x22':
+                        expected_len = LEN_MEASUREMENT_RESPONSE
+                    elif prefix == b'\xAA\x80\x00\x00':
+                        expected_len = LEN_STATUS_RESPONSE
+                    elif prefix == b'\xAA\x80\x00\x06':
+                        expected_len = LEN_VOLTAGE_RESPONSE
+                    elif prefix == b'\xAA\x80\x00\x0A':
+                        expected_len = LEN_VERSION_RESPONSE
+                    elif prefix == b'\xAA\x80\x00\x0C':
+                        expected_len = LEN_VERSION_RESPONSE
+                    elif prefix == b'\xAA\x80\x00\x0E':
+                        expected_len = LEN_SERIAL_RESPONSE
+                    else:
+                        # Không nhận diện được: thử ưu tiên measurement nếu còn đủ dữ liệu
+                        if remaining >= LEN_MEASUREMENT_RESPONSE:
+                            expected_len = LEN_MEASUREMENT_RESPONSE
+                        elif remaining >= LEN_STATUS_RESPONSE:
+                            expected_len = LEN_STATUS_RESPONSE
+                        else:
+                            if start_idx > 0:
+                                del self._bt_parse_buffer[:start_idx]
+                            break
+
+                    if remaining < (expected_len or 0):
+                        # Chưa đủ dữ liệu cho frame mong đợi
+                        if start_idx > 0:
+                            del self._bt_parse_buffer[:start_idx]
                         break
+
+                    candidate = bytes(self._bt_parse_buffer[start_idx:start_idx + expected_len])
+                    del self._bt_parse_buffer[:start_idx + expected_len]
+                    parsed_info = MeskernelResponseParser.parse_any_response(candidate)
+                    break
                 
             if "error" in parsed_info:
                 self.communication_panel.add_log_message(f"Parse error: {parsed_info['error']}", "ERROR")

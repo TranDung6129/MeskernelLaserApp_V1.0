@@ -37,7 +37,7 @@ class ConnectionPanel(QWidget):
         manual_layout = QFormLayout(manual_group)
         
         self.device_address_input = QLineEdit()
-        self.device_address_input.setPlaceholderText("EC:62:60:B6:A8:02")
+        self.device_address_input.setPlaceholderText("EC:62:60:B6:A8:02 hoặc COM7 (Windows)")
         self.device_address_input.setText("EC:62:60:B6:A8:02")  # Default
         
         self.device_port_input = QSpinBox()
@@ -45,7 +45,7 @@ class ConnectionPanel(QWidget):
         self.device_port_input.setValue(1)
         self.device_port_input.setSpecialValueText("Tự động")
         
-        manual_layout.addRow("Địa chỉ MAC:", self.device_address_input)
+        manual_layout.addRow("Địa chỉ/COM:", self.device_address_input)
         manual_layout.addRow("Port/Channel:", self.device_port_input)
         
         # Connection buttons

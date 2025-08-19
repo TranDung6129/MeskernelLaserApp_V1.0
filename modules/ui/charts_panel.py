@@ -2,15 +2,15 @@
 Charts Panel - Tab hiển thị đồ thị real-time và bảng thông số
 """
 import time
-import numpy as np
+import numpy as np # type: ignore[attr-defined]
 from typing import Dict, Any
-from PyQt6.QtWidgets import (
+from PyQt6.QtWidgets import ( # type: ignore[attr-defined]
     QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QGroupBox,
     QTableWidget, QTableWidgetItem, QPushButton, QLabel, QCheckBox
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSlot
-from PyQt6.QtGui import QFont
-import pyqtgraph as pg
+from PyQt6.QtCore import Qt, QTimer, pyqtSlot # type: ignore[attr-defined]
+from PyQt6.QtGui import QFont # type: ignore[attr-defined]
+import pyqtgraph as pg # type: ignore[attr-defined]
 
 class RealTimeChart(QWidget):
     """Widget đồ thị real-time"""

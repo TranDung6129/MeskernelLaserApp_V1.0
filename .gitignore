@@ -8,22 +8,26 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-!build/
-!build/windows_build.bat
+*.pyc
 
 # Virtual envs
 venv/
 .venv/
 env/
 .env
+*.env
 
 # IDE / OS
 .DS_Store
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
 
 # Logs
 *.log
+logs/
 
 # PyInstaller/Packaging
 *.spec
@@ -40,5 +44,17 @@ env/
 # Local data
 *.sqlite*
 *.db
+data/
+*.json
+*.csv
+
+# OS specific
+Thumbs.db
+.directory
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
 
 
