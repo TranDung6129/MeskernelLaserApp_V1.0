@@ -146,7 +146,11 @@ class MeskernelResponseParser:
             # response[6:10] cho distance (4 bytes)
             # response[10:12] cho signal quality (2 bytes)
             distance_mm = int.from_bytes(data[6:10], 'big')
-            signal_quality = int.from_bytes(data[10:12], 'big')
+            raw_quality = int.from_bytes(data[10:12], 'big')
+            # Chuẩn hoá chất lượng tín hiệu về phần trăm 0..100
+            signal_quality = int(raw_quality)
+            if raw_quality > 100:
+                signal_quality = max(0, min(100, round((raw_quality / 65535.0) * 100.0)))
             
             measurement_info = {
                 "raw_hex": MeskernelResponseParser.bytes_to_hex_string(data),

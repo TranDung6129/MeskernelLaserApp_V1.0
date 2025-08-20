@@ -6,11 +6,15 @@ import numpy as np # type: ignore[attr-defined]
 from typing import Dict, Any
 from PyQt6.QtWidgets import ( # type: ignore[attr-defined]
     QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QGroupBox,
-    QTableWidget, QTableWidgetItem, QPushButton, QLabel, QCheckBox
+    QTableWidget, QTableWidgetItem, QPushButton, QLabel, QCheckBox,
+    QHeaderView
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSlot # type: ignore[attr-defined]
 from PyQt6.QtGui import QFont # type: ignore[attr-defined]
 import pyqtgraph as pg # type: ignore[attr-defined]
+
+# Cấu hình chung cho pyqtgraph để hiển thị mượt và gọn
+pg.setConfigOptions(antialias=True)
 
 class RealTimeChart(QWidget):
     """Widget đồ thị real-time"""
@@ -35,21 +39,49 @@ class RealTimeChart(QWidget):
         
         # Chart widget
         self.plot_widget = pg.PlotWidget()
-        self.plot_widget.setLabel('left', self.y_label, units=self.y_unit)
+        # Đặt nhãn trục Y nằm ngang để không bị đè
+        self.plot_widget.setLabel('left', self.y_label, units=self.y_unit, angle=0)
         self.plot_widget.setLabel('bottom', 'Thời gian', units='s')
-        self.plot_widget.setTitle(self.title)
+        self.plot_widget.setTitle(self.title, color='k', size='12pt')
+        # Thêm margins để nhãn/giá trị không đè nhau
+        try:
+            self.plot_widget.getPlotItem().setContentsMargins(12, 6, 8, 8)
+        except Exception:
+            pass
+        # Chiều cao tối thiểu để trục không bị chèn ép
+        self.plot_widget.setMinimumHeight(260)
+        # Tạo padding giữa tick labels và axis label bằng GridLayout spacing
+        try:
+            pi = self.plot_widget.getPlotItem()
+            grid = pi.layout
+            # Hàng 3: trục dưới; Hàng 4: nhãn dưới -> tăng khoảng cách giữa 3 và 4
+            grid.setRowSpacing(4, 18)
+            # Cột 0: nhãn trái; Cột 1: trục trái -> tăng khoảng cách giữa 0 và 1
+            grid.setColumnSpacing(1, 18)
+        except Exception:
+            pass
         
         # Configure plot
         self.plot_widget.showGrid(x=True, y=True)
         self.plot_widget.setBackground('w')  # White background
-        # Cố định bề rộng/chiều cao trục để bố cục ổn định khi số chữ số thay đổi
+        # Cố định bề rộng/chiều cao trục và giảm cỡ chữ để tránh đè nhãn
         try:
-            # Cố định kích thước trục nhưng vẫn hiển thị nhãn/giá trị đầy đủ
-            self.plot_widget.getAxis('left').setWidth(60)
-            self.plot_widget.getAxis('bottom').setHeight(28)
+            axis_left = self.plot_widget.getAxis('left')
+            axis_bottom = self.plot_widget.getAxis('bottom')
+            small_font = QFont("Arial", 9)
+            axis_left.setStyle(tickFont=small_font, autoExpandTextSpace=True, tickTextOffset=12)
+            axis_bottom.setStyle(tickFont=small_font, autoExpandTextSpace=True, tickTextOffset=12)
+            # Font cho nhãn trục để rõ ràng
+            label_font = QFont("Arial", 10, QFont.Weight.Medium)
+            axis_left.label.setFont(label_font)
+            axis_bottom.label.setFont(label_font)
+            # Bề rộng/chiều cao trục đủ rộng cho số nhiều chữ số
+            # Tăng width trục trái để nhãn nằm ngang có chỗ
+            axis_left.setWidth(120)
+            axis_bottom.setHeight(52)
             # Thêm padding không gian trống quanh vùng vẽ để nhãn không đè
             vb = self.plot_widget.getViewBox()
-            vb.setDefaultPadding(0.02)  # 2% padding mỗi phía
+            vb.setDefaultPadding(0.03)
         except Exception:
             pass
         
@@ -61,6 +93,7 @@ class RealTimeChart(QWidget):
         
         # Controls
         controls_layout = QHBoxLayout()
+        controls_layout.setContentsMargins(0, 0, 0, 0)
         
         self.auto_scale_cb = QCheckBox("Auto Scale Y")
         self.auto_scale_cb.setChecked(True)
@@ -139,12 +172,25 @@ class StatsTable(QWidget):
         
         # Configure table
         header = self.table.horizontalHeader()
-        header.setStretchLastSection(False)
-        # Cột "Thông số" rộng hơn cột "Giá trị"
-        header.setSectionResizeMode(0, self.table.horizontalHeader().ResizeMode.Stretch)
-        header.setSectionResizeMode(1, self.table.horizontalHeader().ResizeMode.ResizeToContents)
+        # Để cột giá trị luôn đủ rộng theo không gian còn lại
+        header.setStretchLastSection(True)
+        # Không elide text tiêu đề; cho phép người dùng kéo thay đổi độ rộng cột
+        try:
+            header.setTextElideMode(Qt.TextElideMode.ElideNone)
+        except Exception:
+            pass
+        header.setMinimumSectionSize(120)
+        # Cột "Thông số" cho phép kéo tự do, cột "Giá trị" tự giãn lấp đầy
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        # Đặt độ rộng ban đầu hợp lý cho cột tên; cột giá trị sẽ tự giãn
+        try:
+            header.resizeSection(0, 240)
+        except Exception:
+            pass
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setWordWrap(False)
         
         # Initialize rows
         self.stats_rows = {
@@ -167,8 +213,12 @@ class StatsTable(QWidget):
         
         # Populate table with labels
         for i, (key, label) in enumerate(self.stats_rows.items()):
-            self.table.setItem(i, 0, QTableWidgetItem(label))
-            self.table.setItem(i, 1, QTableWidgetItem("--"))
+            name_item = QTableWidgetItem(label)
+            value_item = QTableWidgetItem("--")
+            name_item.setToolTip(label)
+            value_item.setToolTip("--")
+            self.table.setItem(i, 0, name_item)
+            self.table.setItem(i, 1, value_item)
             
         group_layout.addWidget(self.table)
         
@@ -213,6 +263,7 @@ class StatsTable(QWidget):
                 item = self.table.item(i, 1)
                 if item:
                     item.setText(formatted_value)
+                    item.setToolTip(formatted_value)
                     
                     # Color coding cho một số giá trị
                     if key == 'current_quality':
@@ -260,9 +311,14 @@ class ChartsPanel(QWidget):
         # Left side - Charts
         charts_widget = QWidget()
         charts_layout = QVBoxLayout(charts_widget)
+        charts_layout.setContentsMargins(16, 20, 16, 20)
+        charts_layout.setSpacing(20)
         
         # Charts splitter (vertical)
         charts_splitter = QSplitter(Qt.Orientation.Vertical)
+        charts_splitter.setHandleWidth(8)
+        # Tăng khoảng cách giữa các widget trong splitter
+        charts_splitter.setChildrenCollapsible(False)
         
         # Distance chart
         self.distance_chart = RealTimeChart(
@@ -281,14 +337,27 @@ class ChartsPanel(QWidget):
             max_points=200
         )
         charts_splitter.addWidget(self.velocity_chart)
+        
+        # Đặt tỷ lệ cố định cho splitter để tạo khoảng cách đều
+        charts_splitter.setSizes([1, 1])  # Chia đôi đều
+        charts_splitter.setStretchFactor(0, 1)
+        charts_splitter.setStretchFactor(1, 1)
+        
         # Đồng bộ kích thước trục trái giữa 2 đồ thị để không bị lệch
         try:
+            # Ẩn nhãn/giá trị trục X của đồ thị trên để tránh trùng lặp với đồ thị dưới
+            self.distance_chart.plot_widget.getAxis('bottom').setStyle(showValues=False)
+            self.distance_chart.plot_widget.setLabel('bottom', '')
+            self.distance_chart.plot_widget.getAxis('bottom').setHeight(12)
+
             left_width = max(
                 self.distance_chart.plot_widget.getAxis('left').width(),
                 self.velocity_chart.plot_widget.getAxis('left').width()
             )
             self.distance_chart.plot_widget.getAxis('left').setWidth(left_width)
             self.velocity_chart.plot_widget.getAxis('left').setWidth(left_width)
+            # Liên kết trục thời gian để nhãn X đồng bộ, dễ đọc hơn
+            self.velocity_chart.plot_widget.setXLink(self.distance_chart.plot_widget)
         except Exception:
             pass
         
@@ -299,8 +368,10 @@ class ChartsPanel(QWidget):
         self.stats_table = StatsTable()
         main_splitter.addWidget(self.stats_table)
         
-        # Set splitter proportions - Đồ thị chiếm nhiều không gian hơn
-        main_splitter.setSizes([700, 300])
+        # Set splitter proportions - Cân đối 65/35 và giữ tỉ lệ khi kéo
+        main_splitter.setSizes([650, 250])
+        main_splitter.setStretchFactor(0, 3)
+        main_splitter.setStretchFactor(1, 2)
         
         layout.addWidget(main_splitter)
         

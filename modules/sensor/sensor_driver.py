@@ -118,7 +118,13 @@ class MeskernelSensor:
             
             if len(response) == LEN_MEASUREMENT_RESPONSE and response.startswith(b'\xAA\x00\x00\x22'):
                 distance_mm = int.from_bytes(response[6:10], 'big')
-                signal_quality = int.from_bytes(response[10:12], 'big')
+                raw_quality = int.from_bytes(response[10:12], 'big')
+                # Chuẩn hoá chất lượng tín hiệu về % nếu giá trị vượt 100 (thiết bị có thể trả 0..65535)
+                if raw_quality > 100:
+                    # Map 0..65535 -> 0..100
+                    signal_quality = max(0, min(100, round((raw_quality / 65535.0) * 100.0)))
+                else:
+                    signal_quality = raw_quality
                 if timeout is not None:
                     self.ser.timeout = original_timeout # Restore original timeout
                 return {"distance_mm": distance_mm, "signal_quality": signal_quality}

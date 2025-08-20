@@ -24,6 +24,8 @@ from ..sensor.constants import (
 from .connection_panel import ConnectionPanel
 from .communication_panel import CommunicationPanel
 from .charts_panel import ChartsPanel # type: ignore
+from .mqtt_panel import MQTTPanel
+from .geotech_panel import GeotechPanel
 
 class BluetoothMainWindow(QMainWindow):
     """Cửa sổ chính của ứng dụng Bluetooth"""
@@ -70,12 +72,22 @@ class BluetoothMainWindow(QMainWindow):
         
         # Tab 2: Charts & Stats
         self.charts_panel = ChartsPanel()
-        self.tab_widget.addTab(self.charts_panel, "Đồ Thị & Thống Kê")
+        self.tab_widget.addTab(self.charts_panel, "Đồ Thị/Thống Kê")
+
+        # Tab 3: MQTT
+        self.mqtt_panel = MQTTPanel()
+        self.tab_widget.addTab(self.mqtt_panel, "MQTT")
+
+        # Tab 4: Phân tích khoan địa chất
+        self.geotech_panel = GeotechPanel()
+        self.tab_widget.addTab(self.geotech_panel, "Phân Tích Khoan")
         
         splitter.addWidget(self.tab_widget)
         
-        # Thiết lập tỷ lệ - Thu nhỏ panel kết nối
-        splitter.setSizes([300, 1100])
+        # Thiết lập tỷ lệ - Thu nhỏ hơn nữa panel kết nối bên trái
+        splitter.setSizes([220, 1180])
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
         
         # Status bar
         self.status_bar = QStatusBar()
@@ -108,7 +120,12 @@ class BluetoothMainWindow(QMainWindow):
         
         # Data processor signals
         self.data_processor.new_data_processed.connect(self.charts_panel.update_measurement_data)
+        # Cấp dữ liệu đã xử lý cho MQTT panel để preview/publish
+        self.data_processor.new_data_processed.connect(self.mqtt_panel.on_new_processed_data)
+        # Cấp dữ liệu cho panel khoan địa chất
+        self.data_processor.new_data_processed.connect(self.geotech_panel.on_new_processed_data)
         self.data_processor.statistics_updated.connect(self.charts_panel.update_statistics)
+        self.data_processor.statistics_updated.connect(self.mqtt_panel.on_statistics_updated)
 
         # Khi có phản hồi dạng bytes từ Bluetooth (được parse ở controller), cập nhật thống kê thiết bị nếu phù hợp
         
@@ -482,6 +499,11 @@ class BluetoothMainWindow(QMainWindow):
             
             if reply == QMessageBox.StandardButton.Yes:
                 self.bluetooth_manager.disconnect()
+        # Đảm bảo ngắt MQTT nếu đang bật
+        try:
+            self.mqtt_panel.disconnect()
+        except Exception:
+            pass
                 
         event.accept()
         
