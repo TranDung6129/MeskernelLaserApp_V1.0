@@ -3,7 +3,7 @@ Communication Panel - Panel giao tiếp dữ liệu Bluetooth
 """
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton, QTextEdit, 
-    QLineEdit, QGroupBox, QTabWidget, QSizePolicy
+    QLineEdit, QGroupBox, QTabWidget
 )
 from PyQt6.QtCore import pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QFont
@@ -95,26 +95,19 @@ class DataSendWidget(QWidget):
         self._create_quick_send_section(layout)
         
     def _create_quick_send_section(self, parent_layout):
-        """Tạo section cho các nút điều khiển thiết bị theo bố cục gọn gàng"""
-        def _style_button(button: QPushButton):
-            button.setMinimumHeight(32)
-            button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            return button
-
+        """Tạo section cho các nút điều khiển thiết bị"""
         # Laser Control Group
         laser_group = QGroupBox("Điều Khiển Laser")
         laser_layout = QHBoxLayout(laser_group)
         for label, command in [("Bật Laser", "LASER_ON"), ("Tắt Laser", "LASER_OFF")]:
-            btn = _style_button(QPushButton(label))
+            btn = QPushButton(label)
             btn.clicked.connect(lambda checked, cmd=command: self._send_device_command(cmd))
             laser_layout.addWidget(btn)
         parent_layout.addWidget(laser_group)
 
-        # Measurement Control Group (Grid)
+        # Measurement Control Group
         measurement_group = QGroupBox("Điều Khiển Đo")
         grid = QGridLayout(measurement_group)
-        grid.setHorizontalSpacing(12)
-        grid.setVerticalSpacing(8)
 
         single_commands = [
             ("Đo đơn (Auto)", "SINGLE_AUTO_MEASURE"),
@@ -130,30 +123,28 @@ class DataSendWidget(QWidget):
 
         # Add single measurement buttons (row 0)
         for col, (label, command) in enumerate(single_commands):
-            btn = _style_button(QPushButton(label))
+            btn = QPushButton(label)
             btn.clicked.connect(lambda checked, cmd=command: self._send_device_command(cmd))
             grid.addWidget(btn, 0, col)
 
         # Add continuous measurement buttons (row 1)
         for col, (label, command) in enumerate(continuous_commands):
-            btn = _style_button(QPushButton(label))
+            btn = QPushButton(label)
             btn.clicked.connect(lambda checked, cmd=command: self._send_device_command(cmd))
             grid.addWidget(btn, 1, col)
 
         parent_layout.addWidget(measurement_group)
 
-        # Read commands group (Grid)
+        # Read commands group
         read_group = QGroupBox("Đọc Thông Tin")
         read_grid = QGridLayout(read_group)
-        read_grid.setHorizontalSpacing(12)
-        read_grid.setVerticalSpacing(8)
         read_commands = [
             ("Đọc trạng thái", "READ_STATUS"),
             ("Phiên bản HW", "READ_HARDWARE_VERSION"),
             ("Phiên bản SW", "READ_SOFTWARE_VERSION"),
         ]
         for col, (label, command) in enumerate(read_commands):
-            btn = _style_button(QPushButton(label))
+            btn = QPushButton(label)
             btn.clicked.connect(lambda checked, cmd=command: self._send_device_command(cmd))
             read_grid.addWidget(btn, 0, col)
         parent_layout.addWidget(read_group)
